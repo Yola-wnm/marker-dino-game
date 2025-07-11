@@ -1,152 +1,431 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <title>Budowanie markera 🦖</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
-
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-      margin: 0;
-      font-family: 'Lato', sans-serif;
-      background: #fff;
-      color: #333;
-    }
-
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      color: #008080;
-    }
-
-    #game-container {
-      position: relative;
-      width: 600px;
-      height: 150px;
-      overflow: hidden;
-      background: #fff;
-      border: 2px solid #008080;
-      border-radius: 8px;
-      user-select: none;
-    }
-    #game-container.disabled #obstacle {
-      animation-play-state: paused;
-    }
-
-    #dino {
-      position: absolute;
-      bottom: 0;
-      left: 50px;
-      width: 30px;
-      height: 30px;
-      background: #800080;
-      border-radius: 4px;
-    }
-
-    #obstacle {
-      position: absolute;
-      bottom: 0;
-      left: 600px;
-      width: 20px;
-      height: 30px;
-      background: #FF8C00;
-      animation: obstacle-move 2s infinite linear;
-    }
-    @keyframes obstacle-move {
-      from { left: 600px; }
-      to   { left: -20px; }
-    }
-
-    .jumping {
-      animation: jump 0.6s ease forwards;
-    }
-    @keyframes jump {
-      0%   { bottom: 0; }
-      50%  { bottom: 100px; }
-      100% { bottom: 0; }
-    }
-
-    #info {
-      margin-top: 1.5rem;
-      color: #008080;
-      text-align: center;
-    }
-    #info.game-over {
-      color: #FF8C00;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konfiguracja Elektronowa - Gra</title>
+    <!-- Ładowanie Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ładowanie czcionki Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #f3f4f6; /* Jasnoszare tło */
+        }
+        h1, h2, h3, #level-title, .obstacle-text {
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 700;
+        }
+        /* POPRAWIONA ANIMACJA SKOKU */
+        @keyframes jump {
+            0%   { bottom: 5px; }
+            50%  { bottom: 220px; } /* Zwiększono wysokość skoku (było 170px) */
+            100% { bottom: 5px; }
+        }
+        .jumping {
+            animation: jump 1.5s ease-out; /* Wydłużono czas trwania skoku (było 1.2s) */
+        }
+        /* Animacja ruchu przeszkody */
+        @keyframes obstacle-move {
+            from { right: -250px; }
+            to   { right: 110%; } /* Zapewnia, że animacja zakończy się daleko za ekranem */
+        }
+        .obstacle {
+            animation-name: obstacle-move;
+            animation-timing-function: linear;
+        }
+        .electron {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
 </head>
-<body>
+<body class="text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
 
-  <h1>Budowanie markera 🦖</h1>
-  <div id="game-container" class="disabled"></div>
-  <div id="info">Naciśnij ENTER, aby rozpocząć</div>
+    <div class="w-full max-w-5xl mx-auto text-center">
+        <h1 class="text-3xl md:text-4xl text-gray-800 mb-2">Konfiguracja Elektronowa</h1>
+        <div id="level-title" class="text-lg text-pink-500 h-8 mb-2"></div>
+        <div id="stats" class="text-base md:text-lg mb-4 h-16 flex flex-col justify-center">
+             <p id="info"></p>
+        </div>
+    </div>
 
-  <script>
+    <!-- Kontener gry - ZWIĘKSZONA WYSOKOŚĆ -->
+    <div id="game-container" class="relative w-full max-w-5xl h-[26rem] bg-white border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg">
+        <!-- Ekran startowy (główny) -->
+        <div id="start-screen" class="absolute inset-0 bg-white/95 p-6 flex flex-col justify-center items-center z-30">
+            <div id="start-screen-content" class="text-center max-w-3xl">
+                <h2 class="text-2xl text-gray-800 mb-4">Jak Grać?</h2>
+                <div class="text-left text-base space-y-4 mb-6">
+                     <div>
+                         <h3 class="text-pink-500 mb-1">1. WYPEŁNIJ KONFIGURACJĘ</h3>
+                         <p class="text-sm leading-relaxed text-gray-600">Twoim celem jest uzupełnienie konfiguracji elektronowej dla wskazanego atomu. Gra podpowie Ci, który blok (`1s`, `2s`...) musisz teraz "napełnić" elektronami.</p>
+                     </div>
+                     <div>
+                         <h3 class="text-pink-500 mb-1">2. ZBIERAJ ELEKTRONY</h3>
+                         <p class="text-sm leading-relaxed text-gray-600">Gdy na ekranie pojawi się poprawny, półprzezroczysty blok, **przejdź przez niego**. Za każdym razem zostawisz w nim jeden elektron (🟠). Rób tak, aż zapełnisz podpowłokę.</p>
+                     </div>
+                     <div>
+                         <h3 class="text-pink-500 mb-1">3. UNIKAJ PUŁAPEK</h3>
+                         <p class="text-sm leading-relaxed text-gray-600">Wszystkie inne bloki (czerwone) to pułapki. **Przeskakuj nad nimi** (SPACJA), aby nie przegrać! Dotyczy to także orbitali, które już w pełni zapełniłeś.</p>
+                     </div>
+                </div>
+                <p class="text-gray-600 text-lg animate-pulse">Naciśnij SPACJĘ, aby rozpocząć</p>
+            </div>
+        </div>
+
+        <!-- Ekran startowy poziomu -->
+        <div id="level-start-screen" class="hidden absolute inset-0 bg-white/95 p-6 flex flex-col justify-center items-center z-20">
+            <div class="level-start-screen-content text-center">
+                <h2 id="level-start-title" class="text-2xl text-gray-800 mb-4"></h2>
+                <h3 class="text-lg text-pink-500 mb-2">Docelowa konfiguracja:</h3>
+                <p id="level-start-config" class="text-xl text-gray-700 mb-8"></p>
+                <p class="text-gray-600 text-lg animate-pulse">Naciśnij SPACJĘ, aby kontynuować</p>
+            </div>
+        </div>
+
+        <!-- Elementy gry -->
+        <div id="player" class="absolute bottom-1 left-32 w-8 h-8 bg-pink-500 rounded-full shadow-md"></div>
+        <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-300"></div>
+    </div>
+
+    <script>
     (function() {
-      const container = document.getElementById('game-container');
-      const info = document.getElementById('info');
-      let dino, obstacle, collisionInterval;
-      let isJumping = false, gameOver = false;
+        // --- Konfiguracja Gry ---
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const stats = document.getElementById('stats');
+        const levelTitle = document.getElementById('level-title');
+        const startScreen = document.getElementById('start-screen');
+        const levelStartScreen = document.getElementById('level-start-screen');
+        const levelStartTitle = document.getElementById('level-start-title');
+        const levelStartConfig = document.getElementById('level-start-config');
 
-      function createEntities() {
-        container.innerHTML = '<div id="dino"></div><div id="obstacle"></div>';
-        dino = document.getElementById('dino');
-        obstacle = document.getElementById('obstacle');
-      }
+        const levels = [
+            { name: "Wodoru (H)", config: { "1s": 1 } },
+            { name: "Węgla (C)", config: { "1s": 2, "2s": 2, "2p": 2 } },
+            { name: "Sodu (Na)", config: { "1s": 2, "2s": 2, "2p": 6, "3s": 1 } },
+            { name: "Cynku (Zn)", config: { "1s": 2, "2s": 2, "2p": 6, "3s": 2, "3p": 6, "4s": 2, "3d": 10 } },
+        ];
+        
+        const configSequence = ["1s", "2s", "2p", "3s", "3p", "4s", "3d", "4p", "5s", "4d", "5p", "6s", "4f", "5d", "6p", "7s", "5f", "6d", "7p"];
+        const orbitalCapacities = { 's': 2, 'p': 6, 'd': 10, 'f': 14 };
+        const orbitalBoxes = { 's': 1, 'p': 3, 'd': 5, 'f': 7 };
 
-      function startGame() {
-        gameOver = false;
-        container.classList.remove('disabled');
-        info.textContent = 'Naciśnij SPACJĘ, aby skoczyć';
-        info.classList.remove('game-over');
-        createEntities();
-        isJumping = false;
-        obstacle.style.animationPlayState = 'running';
-        clearInterval(collisionInterval);
-        collisionInterval = setInterval(checkCollision, 20);
-      }
+        let gameState = {
+            isJumping: false,
+            gameOver: true,
+            gameStarted: false,
+            levelScreenActive: false,
+            currentLevelIndex: 0,
+            progress: {},
+            gameLoopId: null,
+            obstacleSpawnerTimeout: null,
+            obstacleSpeed: 6.0,
+            trapChance: 0.4, // Zwiększono szansę na pułapkę dla lepszej rozgrywki
+        };
 
-      function endGame() {
-        gameOver = true;
-        clearInterval(collisionInterval);
-        obstacle.style.animationPlayState = 'paused';
-        info.textContent = 'Koniec gry! Naciśnij ENTER, aby zagrać ponownie';
-        info.classList.add('game-over');
-        container.classList.add('disabled');
-      }
-
-      function jump() {
-        if (isJumping || gameOver) return;
-        isJumping = true;
-        dino.classList.add('jumping');
-        dino.addEventListener('animationend', () => {
-          dino.classList.remove('jumping');
-          isJumping = false;
-        }, { once: true });
-      }
-
-      function checkCollision() {
-        const d = dino.getBoundingClientRect();
-        const o = obstacle.getBoundingClientRect();
-        if (o.left < d.right && o.right > d.left && d.bottom >= o.top) {
-          endGame();
+        // --- Logika Startu i Poziomów ---
+        function initializeGame() {
+            startScreen.classList.remove('hidden');
+            levelStartScreen.classList.add('hidden');
+            levelTitle.textContent = '';
+            stats.innerHTML = '';
         }
-      }
 
-      document.addEventListener('keydown', e => {
-        if (e.code === 'Enter') {
-          startGame();
-        } else if (e.code === 'Space') {
-          jump();
+        function firstStart() {
+            if (gameState.gameStarted) return;
+            gameState.gameStarted = true;
+            startScreen.classList.add('hidden');
+            showLevelStartScreen(0);
         }
-      });
+        
+        function showLevelStartScreen(levelIndex) {
+            const level = levels[levelIndex];
+            gameState.currentLevelIndex = levelIndex;
+            gameState.levelScreenActive = true;
+            
+            levelStartTitle.textContent = `Poziom ${levelIndex + 1}: Atom ${level.name}`;
+            let configString = '';
+            for(const shell of configSequence) {
+                if(level.config[shell]) {
+                    configString += `${shell}<sup>${level.config[shell]}</sup> `;
+                }
+            }
+            levelStartConfig.innerHTML = configString;
+            
+            levelStartScreen.classList.remove('hidden');
+            levelTitle.textContent = '';
+            stats.innerHTML = '';
+        }
+
+        function startLevelGameplay() {
+            gameState.levelScreenActive = false;
+            levelStartScreen.classList.add('hidden');
+            gameState.progress = {};
+            gameState.gameOver = false;
+            
+            document.querySelectorAll('.obstacle').forEach(o => o.remove());
+
+            updateUI();
+            gameLoop();
+            spawnObstacle();
+        }
+
+        function advanceToNextLevel() {
+            gameState.gameOver = true;
+            const nextLevelIndex = gameState.currentLevelIndex + 1;
+            
+            if (nextLevelIndex < levels.length) {
+                levelTitle.textContent = `Poziom ${gameState.currentLevelIndex + 1} ukończony!`;
+                setTimeout(() => showLevelStartScreen(nextLevelIndex), 2000);
+            } else {
+                endGame("Gratulacje! Ukończyłeś wszystkie poziomy!", true);
+            }
+        }
+
+        function endGame(reason, isVictory = false) {
+            gameState.gameOver = true;
+            document.querySelectorAll('.obstacle').forEach(o => o.style.animationPlayState = 'paused');
+            
+            const finalMessage = isVictory ? 
+                `<p class="text-green-500 text-2xl">${reason}</p>` :
+                `<p class="text-red-500 text-xl">KONIEC GRY!</p><p class="text-gray-600 mt-1">${reason}</p>`;
+
+            stats.innerHTML = `${finalMessage}<p class="text-gray-600 mt-2 animate-pulse">Naciśnij SPACJĘ, aby zagrać ponownie.</p>`;
+        }
+
+        // --- Główna Pętla i Interakcje ---
+        function gameLoop() {
+            if (gameState.gameOver) {
+                cancelAnimationFrame(gameState.gameLoopId);
+                clearTimeout(gameState.obstacleSpawnerTimeout);
+                return;
+            }
+            checkInteractions();
+            cleanupObstacles();
+            gameState.gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function jump() {
+            if (gameState.isJumping || gameState.gameOver || gameState.levelScreenActive) return;
+            gameState.isJumping = true;
+            player.classList.add('jumping');
+            player.addEventListener('animationend', () => {
+                player.classList.remove('jumping');
+                gameState.isJumping = false;
+            }, { once: true });
+        }
+
+        function checkInteractions() {
+            const playerRect = player.getBoundingClientRect();
+            for (const obstacle of document.querySelectorAll('.obstacle')) {
+                const obstacleRect = obstacle.getBoundingClientRect();
+                const isColliding = !(playerRect.right < obstacleRect.left || playerRect.left > obstacleRect.right || playerRect.bottom < obstacleRect.top || playerRect.top > obstacleRect.bottom);
+
+                if (isColliding) {
+                    if (obstacle.dataset.isTrap === 'true') {
+                        endGame(`Wpadłeś na pułapkę (${obstacle.dataset.shell})!`);
+                        return;
+                    } else if (!obstacle.dataset.filledThisTurn) {
+                        const requiredShell = getNextRequiredShell();
+                        if(obstacle.dataset.shell === requiredShell) {
+                            const currentElectrons = gameState.progress[obstacle.dataset.shell] || 0;
+                            const targetElectrons = levels[gameState.currentLevelIndex].config[obstacle.dataset.shell];
+                            
+                            if (currentElectrons < targetElectrons) {
+                                gameState.progress[obstacle.dataset.shell] = currentElectrons + 1;
+                                obstacle.dataset.filledThisTurn = 'true';
+                                
+                                redrawElectronsInObstacle(obstacle);
+                                updateUI();
+                                
+                                if (checkLevelCompletion()) {
+                                    advanceToNextLevel();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function checkLevelCompletion() {
+            const targetConfig = levels[gameState.currentLevelIndex].config;
+            for (const shell in targetConfig) {
+                if ((gameState.progress[shell] || 0) < targetConfig[shell]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // --- Tworzenie i Zarządzanie Przeszkodami ---
+        function getNextRequiredShell() {
+            const targetConfig = levels[gameState.currentLevelIndex].config;
+            for (const shell of configSequence) {
+                if (targetConfig[shell] && (gameState.progress[shell] || 0) < targetConfig[shell]) {
+                    return shell;
+                }
+            }
+            return null;
+        }
+
+        // ZMODYFIKOWANA LOGIKA TWORZENIA PRZESZKÓD
+        function spawnObstacle() {
+            if (gameState.gameOver) return;
+            
+            const requiredShell = getNextRequiredShell();
+            if (!requiredShell) return; // Poziom ukończony, zatrzymaj tworzenie
+
+            let shellToSpawn;
+            // 40% szansy na pułapkę, 60% na poprawny orbital
+            if (Math.random() < gameState.trapChance) {
+                // Stwórz pułapkę: wylosuj dowolny orbital, który NIE jest tym wymaganym
+                const trapPool = configSequence.filter(s => s !== requiredShell && levels[gameState.currentLevelIndex].config[s]);
+                shellToSpawn = trapPool.length > 0 ? trapPool[Math.floor(Math.random() * trapPool.length)] : '3d'; // Zapasowy
+            } else {
+                // Stwórz poprawny orbital
+                shellToSpawn = requiredShell;
+            }
+            
+            createObstacle(shellToSpawn);
+            
+            clearTimeout(gameState.obstacleSpawnerTimeout);
+            // Losowy czas pojawiania się kolejnego bloku dla urozmaicenia
+            gameState.obstacleSpawnerTimeout = setTimeout(spawnObstacle, Math.random() * 1000 + 2500); // 2.5s do 3.5s
+        }
+
+        function cleanupObstacles() {
+            const gameRect = gameContainer.getBoundingClientRect();
+            document.querySelectorAll('.obstacle').forEach(obstacle => {
+                const obstacleRect = obstacle.getBoundingClientRect();
+                if (obstacleRect.right < gameRect.left - 50) { // Usuń, gdy zniknie z ekranu
+                    obstacle.remove();
+                }
+            });
+        }
+
+        function redrawElectronsInObstacle(obstacle) {
+            const shell = obstacle.dataset.shell;
+            const electronsToDraw = gameState.progress[shell] || 0;
+            const shellType = shell.charAt(1);
+            const numBoxes = orbitalBoxes[shellType];
+            const orbitalBoxesInObstacle = obstacle.querySelectorAll('[data-orbital-index]');
+
+            orbitalBoxesInObstacle.forEach(box => box.innerHTML = '');
+
+            for (let i = 1; i <= electronsToDraw; i++) {
+                const electron = document.createElement('div');
+                electron.classList.add('w-3', 'h-3', 'bg-orange-400', 'rounded-full', 'electron');
+                const boxIndex = (i - 1) % numBoxes;
+                
+                const targetBox = orbitalBoxesInObstacle[boxIndex];
+                if (targetBox) {
+                    targetBox.appendChild(electron);
+                }
+            }
+        }
+
+        // ZMODYFIKOWANA LOGIKA TWORZENIA BLOKÓW
+        function createObstacle(shell) {
+            const obstacle = document.createElement('div');
+            const shellType = shell.charAt(1);
+            const boxCount = orbitalBoxes[shellType] || 1;
+            let obstacleWidth = 'w-24';
+            let borderColor = 'border-gray-400';
+
+            if(shellType === 's') { obstacleWidth = 'w-12'; borderColor = 'border-purple-400'; }
+            if(shellType === 'p') { obstacleWidth = 'w-32'; borderColor = 'border-orange-400'; }
+            if(shellType === 'd') { obstacleWidth = 'w-48'; borderColor = 'border-blue-400'; }
+            if(shellType === 'f') { obstacleWidth = 'w-64'; borderColor = 'border-red-500'; }
+
+            obstacle.classList.add('obstacle', 'absolute', 'bottom-1', obstacleWidth, 'h-12', 'flex', 'flex-col', 'items-center', 'justify-center', 'rounded-md', 'border-2', 'p-1', 'bg-white', 'shadow');
+            obstacle.dataset.shell = shell;
+            obstacle.style.animationDuration = `${gameState.obstacleSpeed}s`;
+
+            // --- NOWA, UPROSZCZONA LOGIKA PUŁAPEK ---
+            const requiredShell = getNextRequiredShell();
+            const isTrap = (shell !== requiredShell);
+            obstacle.dataset.isTrap = isTrap;
+
+            const text = document.createElement('span');
+            text.classList.add('obstacle-text', 'text-xs', 'text-gray-700');
+            text.textContent = shell;
+            
+            const electronContainer = document.createElement('div');
+            electronContainer.classList.add('electron-container', 'flex', 'flex-wrap', 'justify-center', 'gap-1', 'h-6', 'items-center', 'mt-1');
+
+            obstacle.appendChild(text);
+            obstacle.appendChild(electronContainer);
+
+            if (boxCount > 0) { // Zawsze twórz pudełka, aby pokazać strukturę
+                for (let i = 0; i < boxCount; i++) {
+                    const orbitalBox = document.createElement('div');
+                    orbitalBox.classList.add('w-8', 'h-full', 'border', borderColor, 'flex', 'items-center', 'justify-center', 'flex-wrap', 'gap-px', 'p-px', 'rounded-sm');
+                    orbitalBox.dataset.orbitalIndex = i;
+                    electronContainer.appendChild(orbitalBox);
+                }
+            }
+            
+            if (isTrap) {
+                 obstacle.classList.add('bg-red-200', 'border-red-500');
+            } else {
+                 obstacle.classList.add('bg-gray-50/80', borderColor);
+                 obstacle.style.borderStyle = 'dashed';
+            }
+
+            // --- OSTATECZNA POPRAWKA WIZUALIZACJI ---
+            // 1. Najpierw dodaj element do strony.
+            gameContainer.appendChild(obstacle);
+            // 2. Następnie wywołaj funkcję rysującą. Gwarantuje to, że
+            //    operuje ona na "żywym" elemencie i zawsze pokaże poprawny stan.
+            redrawElectronsInObstacle(obstacle);
+        }
+
+        // --- UI & Obsługa Klawiszy ---
+        function updateUI() {
+            if (gameState.gameOver) return;
+            const level = levels[gameState.currentLevelIndex];
+            levelTitle.textContent = `Uzupełnij konfigurację atomu ${level.name}`;
+            
+            let progressText = '';
+            const targetConfig = level.config;
+            for (const shell of configSequence) {
+                if(targetConfig[shell]) {
+                    const current = gameState.progress[shell] || 0;
+                    const countColor = current > 0 ? 'text-orange-500 font-bold' : 'text-gray-800';
+                    progressText += `<span>${shell}<sup class="${countColor}">${current}</sup><sup class="text-gray-500">/${targetConfig[shell]}</sup></span> `;
+                }
+            }
+            stats.innerHTML = `<p class="tracking-widest">${progressText}</p>`;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameState.gameStarted) {
+                    firstStart();
+                } else if (gameState.levelScreenActive) {
+                    startLevelGameplay();
+                } else if (gameState.gameOver) {
+                    gameState.gameStarted = false;
+                    gameState.currentLevelIndex = 0;
+                    initializeGame();
+                } else {
+                    jump();
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initializeGame);
     })();
-  </script>
-
+    </script>
 </body>
 </html>
