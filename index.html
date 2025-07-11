@@ -128,7 +128,8 @@
             gameLoopId: null,
             obstacleSpawnerTimeout: null,
             obstacleSpeed: 6.0,
-            trapChance: 0.4, // Zwiększono szansę na pułapkę dla lepszej rozgrywki
+            trapChance: 0.4,
+            lastSpawnedShell: null, // ZAPAMIĘTUJE OSTATNI ORBITAL
         };
 
         // --- Logika Startu i Poziomów ---
@@ -170,6 +171,7 @@
             levelStartScreen.classList.add('hidden');
             gameState.progress = {};
             gameState.gameOver = false;
+            gameState.lastSpawnedShell = null; // Resetuj przy starcie poziomu
             
             document.querySelectorAll('.obstacle').forEach(o => o.remove());
 
@@ -282,24 +284,42 @@
             if (gameState.gameOver) return;
             
             const requiredShell = getNextRequiredShell();
-            if (!requiredShell) return; // Poziom ukończony, zatrzymaj tworzenie
+            if (!requiredShell) return; // Poziom ukończony
+
+            const lastSpawned = gameState.lastSpawnedShell;
+
+            // 1. Stwórz pulę wszystkich możliwych orbitali na tym poziomie.
+            let potentialSpawns = Object.keys(levels[gameState.currentLevelIndex].config);
+
+            // 2. Odfiltruj ostatnio wylosowany orbital.
+            let availableSpawns = potentialSpawns.filter(s => s !== lastSpawned);
+
+            // 3. Sytuacja awaryjna: jeśli po filtracji nic nie zostało, użyj oryginalnej puli.
+            if (availableSpawns.length === 0) {
+                availableSpawns = potentialSpawns;
+            }
 
             let shellToSpawn;
-            // 40% szansy na pułapkę, 60% na poprawny orbital
-            if (Math.random() < gameState.trapChance) {
-                // Stwórz pułapkę: wylosuj dowolny orbital, który NIE jest tym wymaganym
-                const trapPool = configSequence.filter(s => s !== requiredShell && levels[gameState.currentLevelIndex].config[s]);
-                shellToSpawn = trapPool.length > 0 ? trapPool[Math.floor(Math.random() * trapPool.length)] : '3d'; // Zapasowy
-            } else {
-                // Stwórz poprawny orbital
+            
+            // 4. Zdecyduj, co wylosować z dostępnej puli.
+            const isRequiredAvailable = availableSpawns.includes(requiredShell);
+            const availableTraps = availableSpawns.filter(s => s !== requiredShell);
+            const shouldSpawnRequired = Math.random() > gameState.trapChance;
+
+            if (isRequiredAvailable && shouldSpawnRequired) {
                 shellToSpawn = requiredShell;
+            } else if (availableTraps.length > 0) {
+                shellToSpawn = availableTraps[Math.floor(Math.random() * availableTraps.length)];
+            } else {
+                shellToSpawn = availableSpawns[Math.floor(Math.random() * availableSpawns.length)];
             }
             
+            // 5. Zaktualizuj stan i stwórz przeszkodę.
+            gameState.lastSpawnedShell = shellToSpawn;
             createObstacle(shellToSpawn);
             
             clearTimeout(gameState.obstacleSpawnerTimeout);
-            // Losowy czas pojawiania się kolejnego bloku dla urozmaicenia
-            gameState.obstacleSpawnerTimeout = setTimeout(spawnObstacle, Math.random() * 1000 + 2500); // 2.5s do 3.5s
+            gameState.obstacleSpawnerTimeout = setTimeout(spawnObstacle, Math.random() * 1000 + 2500);
         }
 
         function cleanupObstacles() {
