@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Budowanie markera 🦖</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      margin: 0;
+      font-family: 'Lato', sans-serif;
+      background: #fff;
+      color: #333;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: #008080;
+    }
+
+    #game-container {
+      position: relative;
+      width: 600px;
+      height: 150px;
+      overflow: hidden;
+      background: #fff;
+      border: 2px solid #008080;
+      border-radius: 8px;
+      user-select: none;
+    }
+    #game-container.disabled #obstacle {
+      animation-play-state: paused;
+    }
+
+    #dino {
+      position: absolute;
+      bottom: 0;
+      left: 50px;
+      width: 30px;
+      height: 30px;
+      background: #800080;
+      border-radius: 4px;
+    }
+
+    #obstacle {
+      position: absolute;
+      bottom: 0;
+      left: 600px;
+      width: 20px;
+      height: 30px;
+      background: #FF8C00;
+      animation: obstacle-move 2s infinite linear;
+    }
+    @keyframes obstacle-move {
+      from { left: 600px; }
+      to   { left: -20px; }
+    }
+
+    .jumping {
+      animation: jump 0.6s ease forwards;
+    }
+    @keyframes jump {
+      0%   { bottom: 0; }
+      50%  { bottom: 100px; }
+      100% { bottom: 0; }
+    }
+
+    #info {
+      margin-top: 1.5rem;
+      color: #008080;
+      text-align: center;
+    }
+    #info.game-over {
+      color: #FF8C00;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Budowanie markera 🦖</h1>
+  <div id="game-container" class="disabled"></div>
+  <div id="info">Naciśnij ENTER, aby rozpocząć</div>
+
+  <script>
+    (function() {
+      const container = document.getElementById('game-container');
+      const info = document.getElementById('info');
+      let dino, obstacle, collisionInterval;
+      let isJumping = false, gameOver = false;
+
+      function createEntities() {
+        container.innerHTML = '<div id="dino"></div><div id="obstacle"></div>';
+        dino = document.getElementById('dino');
+        obstacle = document.getElementById('obstacle');
+      }
+
+      function startGame() {
+        gameOver = false;
+        container.classList.remove('disabled');
+        info.textContent = 'Naciśnij SPACJĘ, aby skoczyć';
+        info.classList.remove('game-over');
+        createEntities();
+        isJumping = false;
+        obstacle.style.animationPlayState = 'running';
+        clearInterval(collisionInterval);
+        collisionInterval = setInterval(checkCollision, 20);
+      }
+
+      function endGame() {
+        gameOver = true;
+        clearInterval(collisionInterval);
+        obstacle.style.animationPlayState = 'paused';
+        info.textContent = 'Koniec gry! Naciśnij ENTER, aby zagrać ponownie';
+        info.classList.add('game-over');
+        container.classList.add('disabled');
+      }
+
+      function jump() {
+        if (isJumping || gameOver) return;
+        isJumping = true;
+        dino.classList.add('jumping');
+        dino.addEventListener('animationend', () => {
+          dino.classList.remove('jumping');
+          isJumping = false;
+        }, { once: true });
+      }
+
+      function checkCollision() {
+        const d = dino.getBoundingClientRect();
+        const o = obstacle.getBoundingClientRect();
+        if (o.left < d.right && o.right > d.left && d.bottom >= o.top) {
+          endGame();
+        }
+      }
+
+      document.addEventListener('keydown', e => {
+        if (e.code === 'Enter') {
+          startGame();
+        } else if (e.code === 'Space') {
+          jump();
+        }
+      });
+    })();
+  </script>
+
+</body>
+</html>
