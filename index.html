@@ -289,29 +289,36 @@
             const lastSpawned = gameState.lastSpawnedShell;
 
             // 1. Stwórz pulę wszystkich możliwych orbitali na tym poziomie.
-            let potentialSpawns = Object.keys(levels[gameState.currentLevelIndex].config);
+            const allLevelShells = Object.keys(levels[gameState.currentLevelIndex].config);
 
-            // 2. Odfiltruj ostatnio wylosowany orbital.
-            let availableSpawns = potentialSpawns.filter(s => s !== lastSpawned);
+            // 2. Odfiltruj ostatnio wylosowany orbital, aby uniknąć powtórzeń.
+            let availableToSpawn = allLevelShells.filter(s => s !== lastSpawned);
 
-            // 3. Sytuacja awaryjna: jeśli po filtracji nic nie zostało, użyj oryginalnej puli.
-            if (availableSpawns.length === 0) {
-                availableSpawns = potentialSpawns;
+            // 3. Sytuacja awaryjna: jeśli po filtracji nic nie zostało (bo np. jest tylko jeden typ orbitalu w poziomie),
+            //    musimy złamać regułę i pozwolić na powtórzenie.
+            if (availableToSpawn.length === 0) {
+                availableToSpawn = allLevelShells;
             }
 
             let shellToSpawn;
             
             // 4. Zdecyduj, co wylosować z dostępnej puli.
-            const isRequiredAvailable = availableSpawns.includes(requiredShell);
-            const availableTraps = availableSpawns.filter(s => s !== requiredShell);
             const shouldSpawnRequired = Math.random() > gameState.trapChance;
 
-            if (isRequiredAvailable && shouldSpawnRequired) {
+            if (shouldSpawnRequired && availableToSpawn.includes(requiredShell)) {
+                // Jeśli mamy wylosować poprawny i jest on dostępny (nie był ostatni)
                 shellToSpawn = requiredShell;
-            } else if (availableTraps.length > 0) {
-                shellToSpawn = availableTraps[Math.floor(Math.random() * availableTraps.length)];
             } else {
-                shellToSpawn = availableSpawns[Math.floor(Math.random() * availableSpawns.length)];
+                // W przeciwnym razie losujemy pułapkę
+                const trapPool = availableToSpawn.filter(s => s !== requiredShell);
+                if (trapPool.length > 0) {
+                    // Jeśli są dostępne pułapki, wylosuj jedną z nich
+                    shellToSpawn = trapPool[Math.floor(Math.random() * trapPool.length)];
+                } else {
+                    // Jeśli nie ma pułapek (bo jedyną dostępną opcją był poprawny orbital),
+                    // musimy wylosować ten poprawny.
+                    shellToSpawn = availableToSpawn[0];
+                }
             }
             
             // 5. Zaktualizuj stan i stwórz przeszkodę.
